@@ -458,8 +458,6 @@
     <button class="music-ctrl" id="muteBtn" onclick="toggleMute()" title="Mute / Unmute">🔊</button>
 </div>
 
-<!-- YouTube player: real size off-screen so browser allows autoplay -->
-<div id="yt-player" style="position:fixed;top:-220px;left:-360px;width:320px;height:180px;pointer-events:none;"></div>
 
 <!-- Floating emoji decorations -->
 <span class="deco" style="top:7%;left:4%;animation-duration:5s">🌙</span>
@@ -711,86 +709,58 @@ shoot();
 setInterval(shoot, 4200);
 
 // ──────────────────────────────────────────────
-//  MUSIC PLAYER  (Holst "The Planets" + kids songs via YouTube IFrame API)
-//  Holst video: Isic2Z2e2xs  |  Earth song: yz7-TADryM0 (Silly School Songs)
+//  MUSIC PLAYER  (HTML5 Audio — no YouTube, no ads)
+//  Holst public domain MP3s + CC0 nature sounds from archive.org
 // ──────────────────────────────────────────────
+// Direct MP3s — public domain Holst (USAF band) + CC0 nature sounds, via archive.org
+const BASE  = 'https://archive.org/download/Holst-ThePlanets/';
 const MUSIC = [
-    { videoId: 'Isic2Z2e2xs', startSeconds: 892,  title: 'Mercury – The Winged Messenger' },
-    { videoId: 'Isic2Z2e2xs', startSeconds: 447,  title: 'Venus – The Bringer of Peace' },
-    { videoId: 'yz7-TADryM0', startSeconds: 0,    title: 'The Planet Earth Song ♪' },
-    { videoId: 'Isic2Z2e2xs', startSeconds: 0,    title: 'Mars – The Bringer of War' },
-    { videoId: 'Isic2Z2e2xs', startSeconds: 1119, title: 'Jupiter – The Bringer of Jollity' },
-    { videoId: 'Isic2Z2e2xs', startSeconds: 1571, title: 'Saturn – The Bringer of Old Age' },
-    { videoId: 'Isic2Z2e2xs', startSeconds: 2126, title: 'Uranus – The Magician' },
-    { videoId: 'Isic2Z2e2xs', startSeconds: 2472, title: 'Neptune – The Mystic' },
+    { src: BASE + 'Mercurio.mp3', title: 'Mercury \u2013 The Winged Messenger' },
+    { src: BASE + 'Venus.mp3',    title: 'Venus \u2013 The Bringer of Peace' },
+    { src: 'https://archive.org/download/naturesounds-soundtheraphy/Birds%20With%20Ocean%20Waves%20on%20the%20Beach.mp3',
+                                  title: 'Earth \u2013 Birds & Ocean Waves \uD83C\uDF3F' },
+    { src: BASE + 'Marte.mp3',    title: 'Mars \u2013 The Bringer of War' },
+    { src: BASE + 'Jupiter.mp3',  title: 'Jupiter \u2013 The Bringer of Jollity' },
+    { src: BASE + 'Saturno.mp3',  title: 'Saturn \u2013 The Bringer of Old Age' },
+    { src: BASE + 'Urano.mp3',    title: 'Uranus \u2013 The Magician' },
+    { src: BASE + 'Neptuno.mp3',  title: 'Neptune \u2013 The Mystic' },
 ];
 
-let ytPlayer = null, ytReady = false, isMuted = false, isPlaying = false;
-let hasStarted = false;   // true after first user-initiated play
-let queuedIdx  = 0;       // planet index waiting to play
+const audio   = new Audio();
+audio.loop    = true;
+let isPlaying = false, isMuted = false, hasStarted = false, queuedIdx = 0;
 
-// Inject YouTube IFrame API script
-(function () {
-    const s = document.createElement('script');
-    s.src = 'https://www.youtube.com/iframe_api';
-    document.head.appendChild(s);
-})();
-
-window.onYouTubeIframeAPIReady = function () {
-    ytPlayer = new YT.Player('yt-player', {
-        videoId: 'Isic2Z2e2xs',
-        playerVars: { autoplay: 0, controls: 0, rel: 0, modestbranding: 1, playsinline: 1 },
-        events: {
-            onReady: () => { ytReady = true; },
-            onStateChange: e => {
-                isPlaying = (e.data === YT.PlayerState.PLAYING);
-                updateMusicUI();
-            }
-        }
-    });
-};
-
-// Called when planet is picked — just queues the track, does NOT play
+// Queue track on planet select — browser blocks play() until user clicks ▶️
 function playPlanetMusic(idx) {
     queuedIdx = idx;
-    const m = MUSIC[idx];
-    setMusicTitle(m.title);
-
-    if (!ytReady) return;
-
+    setMusicTitle(MUSIC[idx].title);
     if (hasStarted) {
-        // User already unblocked audio — switch track immediately
-        ytPlayer.loadVideoById({ videoId: m.videoId, startSeconds: m.startSeconds });
+        audio.src = MUSIC[idx].src;
+        audio.play();
         isPlaying = true;
-        updateMusicUI();
-    } else {
-        // First time: just cue so it's ready; user must press ▶️
-        ytPlayer.cueVideoById({ videoId: m.videoId, startSeconds: m.startSeconds });
         updateMusicUI();
     }
 }
 
-// ▶️ / ⏸️ button — direct user click, guaranteed to work in all browsers
+// ▶️ button is the ONLY entry point before first interaction
 function togglePlay() {
-    if (!ytReady) return;
     if (!hasStarted) {
-        // First play: explicitly load + play from the queued track
-        const m = MUSIC[queuedIdx];
-        ytPlayer.loadVideoById({ videoId: m.videoId, startSeconds: m.startSeconds });
+        audio.src = MUSIC[queuedIdx].src;
+        audio.play();
         hasStarted = true;
         isPlaying  = true;
-        setLabel('♪ Now Playing', false);
+        setLabel('\u266A Now Playing', false);
         updateMusicUI();
         return;
     }
-    isPlaying ? ytPlayer.pauseVideo() : ytPlayer.playVideo();
+    if (isPlaying) { audio.pause(); isPlaying = false; }
+    else           { audio.play();  isPlaying = true;  }
+    updateMusicUI();
 }
 
 function toggleMute() {
-    if (!ytReady) return;
-    isMuted = !isMuted;
-    isMuted ? ytPlayer.mute() : ytPlayer.unMute();
-    document.getElementById('muteBtn').textContent = isMuted ? '🔇' : '🔊';
+    isMuted = audio.muted = !isMuted;
+    document.getElementById('muteBtn').textContent = isMuted ? '\uD83D\uDD07' : '\uD83D\uDD0A';
 }
 
 function setMusicTitle(text) {
