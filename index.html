@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🪐 Planet Explorer!</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: #060618;
+            min-height: 100vh;
+            font-family: 'Nunito', sans-serif;
+            overflow-x: hidden;
+        }
+
+        canvas#stars {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .page {
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            gap: 14px;
+        }
+
+        /* ── Title ── */
+        h1 {
+            font-family: 'Fredoka One', cursive;
+            font-size: clamp(2.2rem, 7vw, 4.5rem);
+            color: #ffe566;
+            text-shadow: 3px 3px 0 #9a6400, 0 0 40px rgba(255,229,102,.45);
+            text-align: center;
+            animation: bob 3.2s ease-in-out infinite;
+        }
+
+        .subtitle {
+            color: #00f5d4;
+            font-size: clamp(.9rem, 2.5vw, 1.2rem);
+            font-weight: 800;
+            letter-spacing: 1px;
+            text-align: center;
+        }
+
+        @keyframes bob {
+            0%,100% { transform: translateY(0); }
+            50%      { transform: translateY(-9px); }
+        }
+
+        /* ── Scene ── */
+        .scene {
+            position: relative;
+            width: 360px;
+            height: 360px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        /* Everything inside floats up/down together */
+        .float-wrap {
+            position: absolute;
+            inset: 0;
+            animation: float 4s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%,100% { transform: translateY(0); }
+            50%      { transform: translateY(-18px); }
+        }
+
+        /* ── Planet ── */
+        .planet {
+            position: absolute;
+            width: 260px;
+            height: 260px;
+            border-radius: 50%;
+            top: 50%; left: 50%;
+            transform: translate(-50%,-50%);
+            background: radial-gradient(circle at 35% 30%, #ffb347, #ff7849 40%, #c94b8e 70%, #7b2d8b);
+            box-shadow:
+                inset -35px -25px 55px rgba(0,0,0,.5),
+                inset 18px 18px 35px rgba(255,200,120,.22),
+                0 0 70px rgba(255,120,73,.45),
+                0 0 130px rgba(255,120,73,.15);
+            transition: background .7s ease, box-shadow .7s ease;
+            overflow: hidden;
+        }
+
+        /* Stripe bands across the planet */
+        .planet::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: repeating-linear-gradient(
+                180deg,
+                transparent 0%, transparent 11%,
+                rgba(255,255,255,.06) 12%, rgba(255,255,255,.06) 16%,
+                transparent 17%
+            );
+        }
+
+        /* ── Face ── */
+        .face {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+        }
+
+        .eyes { display: flex; gap: 44px; }
+
+        .eye {
+            width: 28px; height: 28px;
+            background: #160924;
+            border-radius: 50%;
+            position: relative;
+            animation: blink 5s ease-in-out infinite;
+        }
+
+        .eye::after {
+            content: '';
+            position: absolute;
+            width: 9px; height: 9px;
+            background: white;
+            border-radius: 50%;
+            top: 4px; left: 4px;
+        }
+
+        .eye:last-child { animation-delay: .15s; }
+
+        @keyframes blink {
+            0%, 88%, 100% { transform: scaleY(1); }
+            92%           { transform: scaleY(.07); }
+        }
+
+        .mouth {
+            width: 72px; height: 36px;
+            border-bottom: 7px solid #160924;
+            border-radius: 0 0 36px 36px;
+            transition: transform .3s ease;
+        }
+
+        /* ── Ring (clip-path trick for front/back depth) ── */
+        .ring {
+            position: absolute;
+            width: 460px; height: 80px;
+            border: 22px solid;
+            border-radius: 50%;
+            top: 50%; left: 50%;
+            transform: translate(-50%,-50%);
+            pointer-events: none;
+        }
+
+        /* Back arc: top half, behind planet */
+        .ring-back {
+            border-color: rgba(255,208,55,.42);
+            z-index: -1;
+            clip-path: inset(0 0 50% 0);
+        }
+
+        /* Front arc: bottom half, in front of planet */
+        .ring-front {
+            border-color: rgba(255,208,55,.88);
+            z-index: 1;
+            clip-path: inset(50% 0 0 0);
+        }
+
+        /* ── Orbiting rocket ── */
+        .orbit {
+            position: absolute;
+            width: 380px; height: 380px;
+            top: 50%; left: 50%;
+            animation: spin-orbit 8s linear infinite;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        @keyframes spin-orbit {
+            from { transform: translate(-50%,-50%) rotate(0deg); }
+            to   { transform: translate(-50%,-50%) rotate(360deg); }
+        }
+
+        .rocket {
+            position: absolute;
+            font-size: 2rem;
+            top: -4px; left: 50%;
+            transform: translateX(-50%) rotate(90deg);
+            filter: drop-shadow(0 0 10px rgba(255,210,100,.9));
+        }
+
+        /* ── Bounce on click ── */
+        @keyframes bounce-pop {
+            0%   { transform: translate(-50%,-50%) scale(1); }
+            30%  { transform: translate(-50%,-50%) scale(1.14); }
+            60%  { transform: translate(-50%,-50%) scale(.93); }
+            80%  { transform: translate(-50%,-50%) scale(1.05); }
+            100% { transform: translate(-50%,-50%) scale(1); }
+        }
+
+        .planet.pop { animation: bounce-pop .5s ease forwards !important; }
+
+        /* ── Planet name ── */
+        .planet-name {
+            font-family: 'Fredoka One', cursive;
+            font-size: clamp(1.4rem, 4vw, 2rem);
+            color: #ff6b9d;
+            text-shadow: 0 0 22px rgba(255,107,157,.5);
+        }
+
+        /* ── Fact card ── */
+        .fact-card {
+            background: rgba(255,255,255,.06);
+            border: 2px solid rgba(0,245,212,.33);
+            border-radius: 24px;
+            padding: 18px 28px;
+            max-width: 480px;
+            width: 100%;
+            text-align: center;
+            backdrop-filter: blur(14px);
+        }
+
+        .fact-label {
+            font-family: 'Fredoka One', cursive;
+            color: #00f5d4;
+            font-size: .78rem;
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .fact-text {
+            color: white;
+            font-size: clamp(.95rem, 2.2vw, 1.15rem);
+            font-weight: 700;
+            line-height: 1.55;
+            transition: opacity .25s;
+        }
+
+        .tap-hint {
+            color: rgba(255,229,102,.75);
+            font-size: .88rem;
+            font-weight: 800;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%,100% { opacity: .75; }
+            50%      { opacity: 1; }
+        }
+
+        /* ── Planet nav buttons ── */
+        .nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .nav button {
+            font-family: 'Fredoka One', cursive;
+            font-size: .95rem;
+            padding: 8px 18px;
+            border-radius: 50px;
+            border: 2px solid rgba(255,255,255,.2);
+            background: rgba(255,255,255,.07);
+            color: white;
+            cursor: pointer;
+            transition: all .2s;
+            backdrop-filter: blur(6px);
+        }
+
+        .nav button:hover {
+            border-color: #00f5d4;
+            color: #00f5d4;
+            transform: translateY(-2px) scale(1.07);
+        }
+
+        .nav button.active {
+            background: #00f5d4;
+            color: #060618;
+            border-color: #00f5d4;
+        }
+
+        /* ── Floating decorations ── */
+        .deco {
+            position: fixed;
+            font-size: 2rem;
+            pointer-events: none;
+            z-index: 0;
+            animation: deco-bob ease-in-out infinite;
+        }
+
+        @keyframes deco-bob {
+            0%,100% { transform: translateY(0) rotate(0deg); }
+            33%      { transform: translateY(-18px) rotate(7deg); }
+            66%      { transform: translateY(12px) rotate(-5deg); }
+        }
+
+        /* ── Sparkle on click ── */
+        .sparkle {
+            position: fixed;
+            pointer-events: none;
+            z-index: 999;
+            animation: sparkle-up .7s ease-out forwards;
+        }
+
+        @keyframes sparkle-up {
+            0%   { transform: translateY(0) scale(1);  opacity: 1; }
+            100% { transform: translateY(-80px) scale(.4); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+
+<div class="page">
+    <h1>🌌 Planet Explorer!</h1>
+    <p class="subtitle">Discover the wonders of outer space ✨</p>
+
+    <div class="scene" id="scene">
+        <div class="float-wrap">
+            <div class="ring ring-back" id="ringBack"></div>
+            <div class="planet" id="planet">
+                <div class="face">
+                    <div class="eyes">
+                        <div class="eye"></div>
+                        <div class="eye"></div>
+                    </div>
+                    <div class="mouth"></div>
+                </div>
+            </div>
+            <div class="ring ring-front" id="ringFront"></div>
+            <div class="orbit"><div class="rocket">🚀</div></div>
+        </div>
+    </div>
+
+    <div class="planet-name" id="planetName">🪐 Saturn</div>
+
+    <div class="fact-card">
+        <div class="fact-label">✨ Fun Space Fact ✨</div>
+        <div class="fact-text" id="factText">
+            Saturn has rings made of ice and rocks! They are so big you could fit many Earths inside them! 💫
+        </div>
+    </div>
+
+    <p class="tap-hint">👆 Tap the planet to discover more!</p>
+
+    <div class="nav" id="nav">
+        <button class="active" onclick="pick(0)">🪐 Saturn</button>
+        <button onclick="pick(1)">🔴 Mars</button>
+        <button onclick="pick(2)">🔵 Earth</button>
+        <button onclick="pick(3)">⚡ Jupiter</button>
+        <button onclick="pick(4)">💎 Neptune</button>
+    </div>
+</div>
+
+<!-- Floating emoji decorations -->
+<span class="deco" style="top:7%;left:4%;animation-duration:5s">🌙</span>
+<span class="deco" style="top:17%;right:6%;animation-duration:6.5s;animation-delay:1s">⭐</span>
+<span class="deco" style="bottom:21%;left:5%;animation-duration:7s;animation-delay:2s">☄️</span>
+<span class="deco" style="bottom:11%;right:8%;animation-duration:4.5s;animation-delay:.5s">👨‍🚀</span>
+<span class="deco" style="top:52%;left:2%;animation-duration:8s;animation-delay:1.5s">🛸</span>
+<span class="deco" style="top:38%;right:3%;animation-duration:5.5s;animation-delay:3s">🌟</span>
+<span class="deco" style="top:70%;left:14%;animation-duration:6s;animation-delay:4s">🪨</span>
+<span class="deco" style="top:28%;left:87%;animation-duration:9s;animation-delay:2.5s">🌠</span>
+
+<script>
+// ──────────────────────────────────────────────
+//  STAR FIELD
+// ──────────────────────────────────────────────
+const canvas = document.getElementById('stars');
+const ctx    = canvas.getContext('2d');
+let stars    = [];
+
+function resize() {
+    canvas.width  = innerWidth;
+    canvas.height = innerHeight;
+}
+
+function initStars() {
+    stars = Array.from({ length: 230 }, () => ({
+        x:     Math.random() * canvas.width,
+        y:     Math.random() * canvas.height,
+        r:     Math.random() * 1.8 + 0.3,
+        phase: Math.random() * Math.PI * 2,
+        spd:   Math.random() * 0.018 + 0.004
+    }));
+}
+
+function drawStars(t) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (const s of stars) {
+        const a = 0.35 + 0.65 * Math.abs(Math.sin(t * s.spd + s.phase));
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,255,255,${a.toFixed(2)})`;
+        ctx.fill();
+        if (s.r > 1.5) {               // cross sparkle on bigger stars
+            ctx.strokeStyle = `rgba(255,255,255,${(a * .35).toFixed(2)})`;
+            ctx.lineWidth = .5;
+            ctx.beginPath();
+            ctx.moveTo(s.x - s.r * 3, s.y); ctx.lineTo(s.x + s.r * 3, s.y);
+            ctx.moveTo(s.x, s.y - s.r * 3); ctx.lineTo(s.x, s.y + s.r * 3);
+            ctx.stroke();
+        }
+    }
+    requestAnimationFrame(drawStars);
+}
+
+resize(); initStars();
+requestAnimationFrame(drawStars);
+addEventListener('resize', () => { resize(); initStars(); });
+
+// ──────────────────────────────────────────────
+//  PLANET DATA
+// ──────────────────────────────────────────────
+const PLANETS = [
+    {
+        name: '🪐 Saturn', rings: true,
+        bg:   'radial-gradient(circle at 35% 30%, #ffb347, #ff7849 40%, #c94b8e 70%, #7b2d8b)',
+        glow: [255, 120, 73],
+        facts: [
+            "Saturn has rings made of ice and rocks! They are so big you could fit many Earths inside them! 💫",
+            "Saturn is so light it could float in water — if there was a bathtub big enough! 🛁",
+            "A year on Saturn is 29 Earth years long. Imagine waiting THAT long for your birthday! 🎂",
+            "Saturn has 146 moons! That's a LOT of moons to say goodnight to! 🌙"
+        ]
+    },
+    {
+        name: '🔴 Mars', rings: false,
+        bg:   'radial-gradient(circle at 35% 30%, #ff9966, #cc3300 50%, #8b1a1a 80%, #3a0a0a)',
+        glow: [200, 51, 0],
+        facts: [
+            "Mars is called the Red Planet because its soil is full of rust! It's like a big rusty ball! 🦀",
+            "Mars has the tallest volcano in the solar system — 3 times taller than Mount Everest! 🌋",
+            "Dust storms on Mars can cover the WHOLE planet and last for months! 🌪️",
+            "A day on Mars is just 37 minutes longer than a day on Earth! ⏰"
+        ]
+    },
+    {
+        name: '🔵 Earth', rings: false,
+        bg:   'radial-gradient(circle at 35% 30%, #88ccff, #2266cc 40%, #1a8c1a 65%, #0b3d0b)',
+        glow: [34, 102, 204],
+        facts: [
+            "Earth is the only planet we know of with life on it — that makes us very special! 🌱",
+            "Over 70% of Earth is covered in water, so really we live on a water planet! 🌊",
+            "Earth's inner core is as hot as the surface of the Sun! Incredibly toasty! 🔥",
+            "Our Moon is slowly drifting away from Earth — about 4 centimetres every year! 🌕"
+        ]
+    },
+    {
+        name: '⚡ Jupiter', rings: false,
+        bg:   'radial-gradient(circle at 35% 30%, #ffd699, #cc8833 30%, #996622 55%, #5c3d11)',
+        glow: [204, 136, 51],
+        facts: [
+            "Jupiter is SO big that all the other planets in our solar system could fit inside it! 😲",
+            "The Great Red Spot is a storm on Jupiter that has been raging for over 300 years! 🌀",
+            "A day on Jupiter is only 10 hours long because it spins super fast! 💨",
+            "Jupiter has 95 moons! One of them, Europa, might have an ocean hidden under its ice! 🧊"
+        ]
+    },
+    {
+        name: '💎 Neptune', rings: false,
+        bg:   'radial-gradient(circle at 35% 30%, #aad4ff, #3366ff 40%, #0033cc 65%, #00116b)',
+        glow: [51, 102, 255],
+        facts: [
+            "Neptune has the strongest winds in the solar system — faster than a race car at 2,100 km/h! 🏎️",
+            "It takes 165 Earth years for Neptune to travel around the Sun just once! 🌞",
+            "Neptune was discovered using maths before anyone ever saw it through a telescope! 🔭",
+            "Neptune is so far from the Sun that its sunlight is 900 times dimmer than on Earth! 🌑"
+        ]
+    }
+];
+
+// ──────────────────────────────────────────────
+//  PLANET SWITCHING
+// ──────────────────────────────────────────────
+let current = 0, factIdx = 0;
+
+const planet     = document.getElementById('planet');
+const ringBack   = document.getElementById('ringBack');
+const ringFront  = document.getElementById('ringFront');
+const planetName = document.getElementById('planetName');
+const factText   = document.getElementById('factText');
+const navBtns    = document.querySelectorAll('.nav button');
+
+function applyPlanet(p) {
+    planet.style.background = p.bg;
+    const [r,g,b] = p.glow;
+    planet.style.boxShadow = `
+        inset -35px -25px 55px rgba(0,0,0,.5),
+        inset 18px 18px 35px rgba(255,200,120,.2),
+        0 0 70px rgba(${r},${g},${b},.48),
+        0 0 130px rgba(${r},${g},${b},.18)`;
+    const show = p.rings ? 'block' : 'none';
+    ringBack.style.display = ringFront.style.display = show;
+}
+
+function pick(idx) {
+    current = idx; factIdx = 0;
+    const p = PLANETS[idx];
+    planetName.textContent = p.name;
+    setFact(p.facts[0]);
+    applyPlanet(p);
+    navBtns.forEach((b, i) => b.classList.toggle('active', i === idx));
+    doBounce();
+}
+
+function setFact(text) {
+    factText.style.opacity = '0';
+    setTimeout(() => { factText.textContent = text; factText.style.opacity = '1'; }, 180);
+}
+
+factText.style.transition = 'opacity .25s';
+
+function doBounce() {
+    planet.classList.remove('pop');
+    void planet.offsetWidth;          // reflow to restart animation
+    planet.classList.add('pop');
+    setTimeout(() => planet.classList.remove('pop'), 520);
+}
+
+// ──────────────────────────────────────────────
+//  CLICK INTERACTION
+// ──────────────────────────────────────────────
+document.getElementById('scene').addEventListener('click', e => {
+    const p = PLANETS[current];
+    factIdx = (factIdx + 1) % p.facts.length;
+    setFact(p.facts[factIdx]);
+    doBounce();
+
+    // Sparkle burst
+    ['⭐','✨','💫','🌟','⚡','🎇'].forEach((em, i) => {
+        const el = document.createElement('span');
+        el.className  = 'sparkle';
+        el.textContent = em;
+        el.style.cssText = `
+            left: ${e.clientX + (Math.random() - .5) * 130}px;
+            top:  ${e.clientY + (Math.random() - .5) * 90}px;
+            font-size: ${.9 + Math.random() * .9}rem;
+            animation-delay: ${i * .06}s`;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 850);
+    });
+});
+
+// ──────────────────────────────────────────────
+//  SHOOTING STARS
+// ──────────────────────────────────────────────
+function shoot() {
+    const el = document.createElement('div');
+    el.style.cssText = `
+        position:fixed; z-index:0; pointer-events:none;
+        top:${Math.random() * 55}%; left:-8px;
+        width:4px; height:4px;
+        background:white; border-radius:50%;`;
+    document.body.appendChild(el);
+    const tx = innerWidth + 220;
+    const ty = (Math.random() - .5) * 280;
+    el.animate([
+        { transform: 'translate(0,0)',             opacity: 1,
+          boxShadow: '0 0 0 0 white, -70px 0 18px white' },
+        { transform: `translate(${tx}px,${ty}px)`, opacity: 0,
+          boxShadow: '0 0 0 0 transparent' }
+    ], { duration: 900 + Math.random() * 600, easing: 'linear' })
+    .onfinish = () => el.remove();
+}
+
+shoot();
+setInterval(shoot, 4200);
+
+// ──────────────────────────────────────────────
+//  INIT
+// ──────────────────────────────────────────────
+applyPlanet(PLANETS[0]);
+</script>
+</body>
+</html>
