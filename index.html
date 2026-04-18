@@ -452,11 +452,11 @@
         <div class="music-title" id="musicTitle">Pick a planet to play music!</div>
     </div>
     <button class="music-ctrl" id="playBtn" onclick="togglePlay()" title="Play / Pause">▶️</button>
-    <button class="music-ctrl" id="muteBtn" onclick="toggleMute()" title="Mute / Unmute">🔊</button>
+    <button class="music-ctrl" id="muteBtn" onclick="toggleMute()" title="Mute / Unmute">🔇</button>
 </div>
 
-<!-- Hidden YouTube player (audio only, 1×1px off-screen) -->
-<div id="yt-player" style="position:fixed;left:-2px;bottom:-2px;width:1px;height:1px;opacity:0;pointer-events:none;"></div>
+<!-- YouTube player: real size off-screen so browser allows autoplay -->
+<div id="yt-player" style="position:fixed;top:-220px;left:-360px;width:320px;height:180px;pointer-events:none;"></div>
 
 <!-- Floating emoji decorations -->
 <span class="deco" style="top:7%;left:4%;animation-duration:5s">🌙</span>
@@ -722,7 +722,7 @@ const MUSIC = [
     { videoId: 'Isic2Z2e2xs', startSeconds: 2472, title: 'Neptune – The Mystic' },
 ];
 
-let ytPlayer = null, ytReady = false, isMuted = false, isPlaying = false;
+let ytPlayer = null, ytReady = false, isMuted = true, isPlaying = false;
 
 // Inject YouTube IFrame API script
 (function () {
@@ -734,9 +734,10 @@ let ytPlayer = null, ytReady = false, isMuted = false, isPlaying = false;
 window.onYouTubeIframeAPIReady = function () {
     ytPlayer = new YT.Player('yt-player', {
         videoId: 'Isic2Z2e2xs',
-        playerVars: { autoplay: 0, controls: 0, rel: 0, modestbranding: 1 },
+        // autoplay:1 + mute:1 = Chrome allows it; user taps 🔇 to hear sound
+        playerVars: { autoplay: 1, mute: 1, controls: 0, rel: 0, modestbranding: 1, playsinline: 1 },
         events: {
-            onReady: () => { ytReady = true; },
+            onReady: e => { ytReady = true; e.target.mute(); e.target.pauseVideo(); },
             onStateChange: e => {
                 isPlaying = (e.data === YT.PlayerState.PLAYING);
                 updateMusicUI();
@@ -753,9 +754,13 @@ function playPlanetMusic(idx) {
         document.getElementById('musicTitle').style.opacity = '1';
     }, 200);
     if (!ytReady) return;
+    // Must stay muted to satisfy autoplay policy; user can unmute manually
+    ytPlayer.mute();
     ytPlayer.loadVideoById({ videoId: m.videoId, startSeconds: m.startSeconds });
+    isMuted = true;
     isPlaying = true;
     updateMusicUI();
+    pulseUnmuteBtn();
 }
 
 function togglePlay() {
@@ -770,8 +775,20 @@ function toggleMute() {
     document.getElementById('muteBtn').textContent = isMuted ? '🔇' : '🔊';
 }
 
+// Gently pulse the mute button so kids know to tap it for sound
+function pulseUnmuteBtn() {
+    const btn = document.getElementById('muteBtn');
+    btn.style.transition = 'transform .25s';
+    let n = 0;
+    const iv = setInterval(() => {
+        btn.style.transform = n % 2 === 0 ? 'scale(1.4)' : 'scale(1)';
+        if (++n > 5) { clearInterval(iv); btn.style.transform = ''; }
+    }, 250);
+}
+
 function updateMusicUI() {
     document.getElementById('playBtn').textContent = isPlaying ? '⏸️' : '▶️';
+    document.getElementById('muteBtn').textContent = isMuted ? '🔇' : '🔊';
     const note = document.getElementById('musicNote');
     note.classList.toggle('spinning', isPlaying);
     document.getElementById('musicBar').classList.toggle('playing', isPlaying);
