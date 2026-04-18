@@ -356,7 +356,10 @@
             font-size: .62rem;
             letter-spacing: 2.5px;
             text-transform: uppercase;
+            transition: color .3s;
         }
+
+        .music-label.hint { color: #ffe566; }
 
         .music-title {
             color: white;
@@ -448,11 +451,11 @@
 <div class="music-bar" id="musicBar">
     <span class="music-note" id="musicNote">🎵</span>
     <div class="music-info">
-        <div class="music-label">♪ Now Playing</div>
-        <div class="music-title" id="musicTitle">Pick a planet to play music!</div>
+        <div class="music-label hint" id="musicLabel">👆 Press ▶️ to start music</div>
+        <div class="music-title" id="musicTitle">Pick a planet first!</div>
     </div>
     <button class="music-ctrl" id="playBtn" onclick="togglePlay()" title="Play / Pause">▶️</button>
-    <button class="music-ctrl" id="muteBtn" onclick="toggleMute()" title="Mute / Unmute">🔇</button>
+    <button class="music-ctrl" id="muteBtn" onclick="toggleMute()" title="Mute / Unmute">🔊</button>
 </div>
 
 <!-- YouTube player: real size off-screen so browser allows autoplay -->
@@ -722,7 +725,9 @@ const MUSIC = [
     { videoId: 'Isic2Z2e2xs', startSeconds: 2472, title: 'Neptune – The Mystic' },
 ];
 
-let ytPlayer = null, ytReady = false, isMuted = true, isPlaying = false;
+let ytPlayer = null, ytReady = false, isMuted = false, isPlaying = false;
+let hasStarted = false;   // true after first user-initiated play
+let queuedIdx  = 0;       // planet index waiting to play
 
 // Inject YouTube IFrame API script
 (function () {
@@ -734,10 +739,9 @@ let ytPlayer = null, ytReady = false, isMuted = true, isPlaying = false;
 window.onYouTubeIframeAPIReady = function () {
     ytPlayer = new YT.Player('yt-player', {
         videoId: 'Isic2Z2e2xs',
-        // autoplay:1 + mute:1 = Chrome allows it; user taps 🔇 to hear sound
-        playerVars: { autoplay: 1, mute: 1, controls: 0, rel: 0, modestbranding: 1, playsinline: 1 },
+        playerVars: { autoplay: 0, controls: 0, rel: 0, modestbranding: 1, playsinline: 1 },
         events: {
-            onReady: e => { ytReady = true; e.target.mute(); e.target.pauseVideo(); },
+            onReady: () => { ytReady = true; },
             onStateChange: e => {
                 isPlaying = (e.data === YT.PlayerState.PLAYING);
                 updateMusicUI();
@@ -746,25 +750,39 @@ window.onYouTubeIframeAPIReady = function () {
     });
 };
 
+// Called when planet is picked — just queues the track, does NOT play
 function playPlanetMusic(idx) {
+    queuedIdx = idx;
     const m = MUSIC[idx];
-    document.getElementById('musicTitle').style.opacity = '0';
-    setTimeout(() => {
-        document.getElementById('musicTitle').textContent = m.title;
-        document.getElementById('musicTitle').style.opacity = '1';
-    }, 200);
+    setMusicTitle(m.title);
+
     if (!ytReady) return;
-    // Must stay muted to satisfy autoplay policy; user can unmute manually
-    ytPlayer.mute();
-    ytPlayer.loadVideoById({ videoId: m.videoId, startSeconds: m.startSeconds });
-    isMuted = true;
-    isPlaying = true;
-    updateMusicUI();
-    pulseUnmuteBtn();
+
+    if (hasStarted) {
+        // User already unblocked audio — switch track immediately
+        ytPlayer.loadVideoById({ videoId: m.videoId, startSeconds: m.startSeconds });
+        isPlaying = true;
+        updateMusicUI();
+    } else {
+        // First time: just cue so it's ready; user must press ▶️
+        ytPlayer.cueVideoById({ videoId: m.videoId, startSeconds: m.startSeconds });
+        updateMusicUI();
+    }
 }
 
+// ▶️ / ⏸️ button — direct user click, guaranteed to work in all browsers
 function togglePlay() {
     if (!ytReady) return;
+    if (!hasStarted) {
+        // First play: explicitly load + play from the queued track
+        const m = MUSIC[queuedIdx];
+        ytPlayer.loadVideoById({ videoId: m.videoId, startSeconds: m.startSeconds });
+        hasStarted = true;
+        isPlaying  = true;
+        setLabel('♪ Now Playing', false);
+        updateMusicUI();
+        return;
+    }
     isPlaying ? ytPlayer.pauseVideo() : ytPlayer.playVideo();
 }
 
@@ -775,23 +793,25 @@ function toggleMute() {
     document.getElementById('muteBtn').textContent = isMuted ? '🔇' : '🔊';
 }
 
-// Gently pulse the mute button so kids know to tap it for sound
-function pulseUnmuteBtn() {
-    const btn = document.getElementById('muteBtn');
-    btn.style.transition = 'transform .25s';
-    let n = 0;
-    const iv = setInterval(() => {
-        btn.style.transform = n % 2 === 0 ? 'scale(1.4)' : 'scale(1)';
-        if (++n > 5) { clearInterval(iv); btn.style.transform = ''; }
-    }, 250);
+function setMusicTitle(text) {
+    const el = document.getElementById('musicTitle');
+    el.style.opacity = '0';
+    setTimeout(() => { el.textContent = text; el.style.opacity = '1'; }, 200);
+    if (!hasStarted) setLabel('👆 Press ▶️ to hear music!', true);
+}
+
+function setLabel(text, isHint) {
+    const el = document.getElementById('musicLabel');
+    el.textContent = text;
+    el.classList.toggle('hint', isHint);
 }
 
 function updateMusicUI() {
     document.getElementById('playBtn').textContent = isPlaying ? '⏸️' : '▶️';
-    document.getElementById('muteBtn').textContent = isMuted ? '🔇' : '🔊';
     const note = document.getElementById('musicNote');
     note.classList.toggle('spinning', isPlaying);
     document.getElementById('musicBar').classList.toggle('playing', isPlaying);
+    if (hasStarted && isPlaying) setLabel('♪ Now Playing', false);
 }
 
 document.getElementById('musicTitle').style.transition = 'opacity .25s';
