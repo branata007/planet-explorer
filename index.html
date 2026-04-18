@@ -310,6 +310,78 @@
             66%      { transform: translateY(12px) rotate(-5deg); }
         }
 
+        /* ── Music Player Bar ── */
+        .music-bar {
+            position: fixed;
+            bottom: 22px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(6,6,24,.88);
+            backdrop-filter: blur(18px);
+            border: 2px solid rgba(0,245,212,.35);
+            border-radius: 50px;
+            padding: 10px 18px 10px 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 100;
+            min-width: 290px;
+            max-width: 90vw;
+            transition: border-color .5s;
+        }
+
+        .music-bar.playing { border-color: rgba(0,245,212,.75); }
+
+        .music-note {
+            font-size: 1.5rem;
+            flex-shrink: 0;
+            display: inline-block;
+            transition: transform .3s;
+        }
+
+        .music-note.spinning {
+            animation: note-swing 1.2s ease-in-out infinite alternate;
+        }
+
+        @keyframes note-swing {
+            from { transform: rotate(-15deg) scale(1); }
+            to   { transform: rotate(15deg) scale(1.15); }
+        }
+
+        .music-info { flex: 1; min-width: 0; overflow: hidden; }
+
+        .music-label {
+            font-family: 'Fredoka One', cursive;
+            color: #00f5d4;
+            font-size: .62rem;
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+        }
+
+        .music-title {
+            color: white;
+            font-size: .82rem;
+            font-weight: 800;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: opacity .3s;
+        }
+
+        .music-ctrl {
+            background: none;
+            border: none;
+            font-size: 1.25rem;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 50%;
+            transition: transform .15s;
+            flex-shrink: 0;
+            line-height: 1;
+        }
+
+        .music-ctrl:hover { transform: scale(1.25); }
+
         /* ── Sparkle on click ── */
         .sparkle {
             position: fixed;
@@ -371,6 +443,20 @@
         <button onclick="pick(7)">💎 Neptune</button>
     </div>
 </div>
+
+<!-- Music Player Bar -->
+<div class="music-bar" id="musicBar">
+    <span class="music-note" id="musicNote">🎵</span>
+    <div class="music-info">
+        <div class="music-label">♪ Now Playing</div>
+        <div class="music-title" id="musicTitle">Pick a planet to play music!</div>
+    </div>
+    <button class="music-ctrl" id="playBtn" onclick="togglePlay()" title="Play / Pause">▶️</button>
+    <button class="music-ctrl" id="muteBtn" onclick="toggleMute()" title="Mute / Unmute">🔊</button>
+</div>
+
+<!-- Hidden YouTube player (audio only, 1×1px off-screen) -->
+<div id="yt-player" style="position:fixed;left:-2px;bottom:-2px;width:1px;height:1px;opacity:0;pointer-events:none;"></div>
 
 <!-- Floating emoji decorations -->
 <span class="deco" style="top:7%;left:4%;animation-duration:5s">🌙</span>
@@ -555,6 +641,7 @@ function pick(idx) {
     applyPlanet(p);
     navBtns.forEach((b, i) => b.classList.toggle('active', i === idx));
     doBounce();
+    playPlanetMusic(idx);
 }
 
 function setFact(text) {
@@ -619,6 +706,78 @@ function shoot() {
 
 shoot();
 setInterval(shoot, 4200);
+
+// ──────────────────────────────────────────────
+//  MUSIC PLAYER  (Holst "The Planets" + kids songs via YouTube IFrame API)
+//  Holst video: Isic2Z2e2xs  |  Earth song: yz7-TADryM0 (Silly School Songs)
+// ──────────────────────────────────────────────
+const MUSIC = [
+    { videoId: 'Isic2Z2e2xs', startSeconds: 892,  title: 'Mercury – The Winged Messenger' },
+    { videoId: 'Isic2Z2e2xs', startSeconds: 447,  title: 'Venus – The Bringer of Peace' },
+    { videoId: 'yz7-TADryM0', startSeconds: 0,    title: 'The Planet Earth Song ♪' },
+    { videoId: 'Isic2Z2e2xs', startSeconds: 0,    title: 'Mars – The Bringer of War' },
+    { videoId: 'Isic2Z2e2xs', startSeconds: 1119, title: 'Jupiter – The Bringer of Jollity' },
+    { videoId: 'Isic2Z2e2xs', startSeconds: 1571, title: 'Saturn – The Bringer of Old Age' },
+    { videoId: 'Isic2Z2e2xs', startSeconds: 2126, title: 'Uranus – The Magician' },
+    { videoId: 'Isic2Z2e2xs', startSeconds: 2472, title: 'Neptune – The Mystic' },
+];
+
+let ytPlayer = null, ytReady = false, isMuted = false, isPlaying = false;
+
+// Inject YouTube IFrame API script
+(function () {
+    const s = document.createElement('script');
+    s.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(s);
+})();
+
+window.onYouTubeIframeAPIReady = function () {
+    ytPlayer = new YT.Player('yt-player', {
+        videoId: 'Isic2Z2e2xs',
+        playerVars: { autoplay: 0, controls: 0, rel: 0, modestbranding: 1 },
+        events: {
+            onReady: () => { ytReady = true; },
+            onStateChange: e => {
+                isPlaying = (e.data === YT.PlayerState.PLAYING);
+                updateMusicUI();
+            }
+        }
+    });
+};
+
+function playPlanetMusic(idx) {
+    const m = MUSIC[idx];
+    document.getElementById('musicTitle').style.opacity = '0';
+    setTimeout(() => {
+        document.getElementById('musicTitle').textContent = m.title;
+        document.getElementById('musicTitle').style.opacity = '1';
+    }, 200);
+    if (!ytReady) return;
+    ytPlayer.loadVideoById({ videoId: m.videoId, startSeconds: m.startSeconds });
+    isPlaying = true;
+    updateMusicUI();
+}
+
+function togglePlay() {
+    if (!ytReady) return;
+    isPlaying ? ytPlayer.pauseVideo() : ytPlayer.playVideo();
+}
+
+function toggleMute() {
+    if (!ytReady) return;
+    isMuted = !isMuted;
+    isMuted ? ytPlayer.mute() : ytPlayer.unMute();
+    document.getElementById('muteBtn').textContent = isMuted ? '🔇' : '🔊';
+}
+
+function updateMusicUI() {
+    document.getElementById('playBtn').textContent = isPlaying ? '⏸️' : '▶️';
+    const note = document.getElementById('musicNote');
+    note.classList.toggle('spinning', isPlaying);
+    document.getElementById('musicBar').classList.toggle('playing', isPlaying);
+}
+
+document.getElementById('musicTitle').style.transition = 'opacity .25s';
 
 // ──────────────────────────────────────────────
 //  INIT
