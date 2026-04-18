@@ -349,23 +349,26 @@
         </div>
     </div>
 
-    <div class="planet-name" id="planetName">🪐 Saturn</div>
+    <div class="planet-name" id="planetName">☿ Mercury</div>
 
     <div class="fact-card">
         <div class="fact-label">✨ Fun Space Fact ✨</div>
         <div class="fact-text" id="factText">
-            Saturn has rings made of ice and rocks! They are so big you could fit many Earths inside them! 💫
+            Mercury is the smallest planet in our solar system — it's only a little bigger than our Moon! 🌑
         </div>
     </div>
 
     <p class="tap-hint">👆 Tap the planet to discover more!</p>
 
     <div class="nav" id="nav">
-        <button class="active" onclick="pick(0)">🪐 Saturn</button>
-        <button onclick="pick(1)">🔴 Mars</button>
+        <button onclick="pick(0)">☿ Mercury</button>
+        <button onclick="pick(1)">🌸 Venus</button>
         <button onclick="pick(2)">🔵 Earth</button>
-        <button onclick="pick(3)">⚡ Jupiter</button>
-        <button onclick="pick(4)">💎 Neptune</button>
+        <button onclick="pick(3)">🔴 Mars</button>
+        <button onclick="pick(4)">⚡ Jupiter</button>
+        <button class="active" onclick="pick(5)">🪐 Saturn</button>
+        <button onclick="pick(6)">🌀 Uranus</button>
+        <button onclick="pick(7)">💎 Neptune</button>
     </div>
 </div>
 
@@ -431,25 +434,25 @@ addEventListener('resize', () => { resize(); initStars(); });
 // ──────────────────────────────────────────────
 const PLANETS = [
     {
-        name: '🪐 Saturn', rings: true,
-        bg:   'radial-gradient(circle at 35% 30%, #ffb347, #ff7849 40%, #c94b8e 70%, #7b2d8b)',
-        glow: [255, 120, 73],
+        name: '☿ Mercury', rings: false,
+        bg:   'radial-gradient(circle at 35% 30%, #c8bfb0, #8c7f72 40%, #5a5048 70%, #2e2720)',
+        glow: [140, 127, 114],
         facts: [
-            "Saturn has rings made of ice and rocks! They are so big you could fit many Earths inside them! 💫",
-            "Saturn is so light it could float in water — if there was a bathtub big enough! 🛁",
-            "A year on Saturn is 29 Earth years long. Imagine waiting THAT long for your birthday! 🎂",
-            "Saturn has 146 moons! That's a LOT of moons to say goodnight to! 🌙"
+            "Mercury is the smallest planet in our solar system — it's only a little bigger than our Moon! 🌑",
+            "A day on Mercury lasts longer than its whole year! It spins very slowly! ⏳",
+            "Mercury has no atmosphere, so temperatures swing from freezing cold to scorching hot! 🥶🔥",
+            "Mercury is covered in craters from space rocks that crashed into it billions of years ago! 💥"
         ]
     },
     {
-        name: '🔴 Mars', rings: false,
-        bg:   'radial-gradient(circle at 35% 30%, #ff9966, #cc3300 50%, #8b1a1a 80%, #3a0a0a)',
-        glow: [200, 51, 0],
+        name: '🌸 Venus', rings: false,
+        bg:   'radial-gradient(circle at 35% 30%, #ffe4a0, #e8a030 40%, #c46010 65%, #7a3008)',
+        glow: [232, 160, 48],
         facts: [
-            "Mars is called the Red Planet because its soil is full of rust! It's like a big rusty ball! 🦀",
-            "Mars has the tallest volcano in the solar system — 3 times taller than Mount Everest! 🌋",
-            "Dust storms on Mars can cover the WHOLE planet and last for months! 🌪️",
-            "A day on Mars is just 37 minutes longer than a day on Earth! ⏰"
+            "Venus is the hottest planet in our solar system — even hotter than Mercury! It's over 450°C! 🔥",
+            "A day on Venus is longer than a year on Venus — it spins incredibly slowly! 🐢",
+            "Venus spins backwards compared to most planets! The Sun rises in the west there! 🌅",
+            "Venus is the brightest object in our night sky after the Moon — it's called the Evening Star! ⭐"
         ]
     },
     {
@@ -464,6 +467,17 @@ const PLANETS = [
         ]
     },
     {
+        name: '🔴 Mars', rings: false,
+        bg:   'radial-gradient(circle at 35% 30%, #ff9966, #cc3300 50%, #8b1a1a 80%, #3a0a0a)',
+        glow: [200, 51, 0],
+        facts: [
+            "Mars is called the Red Planet because its soil is full of rust! It's like a big rusty ball! 🦀",
+            "Mars has the tallest volcano in the solar system — 3 times taller than Mount Everest! 🌋",
+            "Dust storms on Mars can cover the WHOLE planet and last for months! 🌪️",
+            "A day on Mars is just 37 minutes longer than a day on Earth! ⏰"
+        ]
+    },
+    {
         name: '⚡ Jupiter', rings: false,
         bg:   'radial-gradient(circle at 35% 30%, #ffd699, #cc8833 30%, #996622 55%, #5c3d11)',
         glow: [204, 136, 51],
@@ -472,6 +486,28 @@ const PLANETS = [
             "The Great Red Spot is a storm on Jupiter that has been raging for over 300 years! 🌀",
             "A day on Jupiter is only 10 hours long because it spins super fast! 💨",
             "Jupiter has 95 moons! One of them, Europa, might have an ocean hidden under its ice! 🧊"
+        ]
+    },
+    {
+        name: '🪐 Saturn', rings: true,
+        bg:   'radial-gradient(circle at 35% 30%, #ffb347, #ff7849 40%, #c94b8e 70%, #7b2d8b)',
+        glow: [255, 120, 73],
+        facts: [
+            "Saturn has rings made of ice and rocks! They are so big you could fit many Earths inside them! 💫",
+            "Saturn is so light it could float in water — if there was a bathtub big enough! 🛁",
+            "A year on Saturn is 29 Earth years long. Imagine waiting THAT long for your birthday! 🎂",
+            "Saturn has 146 moons! That's a LOT of moons to say goodnight to! 🌙"
+        ]
+    },
+    {
+        name: '🌀 Uranus', rings: true,
+        bg:   'radial-gradient(circle at 35% 30%, #c0f0f0, #40c0c8 40%, #1888a0 65%, #0a4a60)',
+        glow: [64, 192, 200],
+        facts: [
+            "Uranus spins on its side! It rolls around the Sun like a bowling ball! 🎳",
+            "Uranus has rings just like Saturn, but they are very thin and dark! 💍",
+            "A season on Uranus lasts 21 Earth years because of how tilted it is! 🌦️",
+            "Uranus is so cold it's called an ice giant — its clouds are made of frozen methane! 🧊"
         ]
     },
     {
@@ -490,7 +526,7 @@ const PLANETS = [
 // ──────────────────────────────────────────────
 //  PLANET SWITCHING
 // ──────────────────────────────────────────────
-let current = 0, factIdx = 0;
+let current = 0, factIdx = 0;  // 0 = Mercury (first in solar system order)
 
 const planet     = document.getElementById('planet');
 const ringBack   = document.getElementById('ringBack');
@@ -587,7 +623,7 @@ setInterval(shoot, 4200);
 // ──────────────────────────────────────────────
 //  INIT
 // ──────────────────────────────────────────────
-applyPlanet(PLANETS[0]);
+applyPlanet(PLANETS[0]);   // start on Mercury
 </script>
 </body>
 </html>
